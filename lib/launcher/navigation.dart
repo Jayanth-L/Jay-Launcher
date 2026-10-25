@@ -68,18 +68,28 @@ extension _LauncherNavigation on _LauncherState {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: letters
-                  .map(
-                    (letter) => Text(
-                      letter,
-                      style: TextStyle(
-                        color: activeAlphabetLetter == letter ? accent : sub,
-                        fontSize: activeAlphabetLetter == letter ? 12 : 9,
-                        fontWeight: activeAlphabetLetter == letter
-                            ? FontWeight.w700
-                            : FontWeight.w500,
+                  .map((letter) {
+                    final isSelected = activeAlphabetLetter == letter;
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      width: 18,
+                      height: 18,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isSelected ? accent : Colors.transparent,
+                        shape: BoxShape.circle,
                       ),
-                    ),
-                  )
+                      child: Text(
+                        letter,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : sub,
+                          fontSize: isSelected ? 10 : 9,
+                          fontWeight:
+                              isSelected ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  })
                   .toList(),
             ),
           ),
@@ -105,7 +115,6 @@ extension _LauncherNavigation on _LauncherState {
             _nav(0, Icons.spa_outlined, 'Home'),
             _nav(1, Icons.grid_view_rounded, 'Apps'),
             _nav(2, Icons.bar_chart_rounded, 'Insights'),
-            _nav(3, Icons.settings_outlined, 'Settings'),
           ],
         ),
       );

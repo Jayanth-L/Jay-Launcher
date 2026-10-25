@@ -28,14 +28,12 @@ class Launcher extends StatefulWidget {
   const Launcher({
     super.key,
     required this.themeMode,
-    required this.cycleTheme,
     required this.selectThemeMode,
     required this.accentIndex,
     required this.accentColor,
     required this.selectAccent,
   });
   final LauncherThemeMode themeMode;
-  final VoidCallback cycleTheme;
   final ValueChanged<LauncherThemeMode> selectThemeMode;
   final int accentIndex;
   final Color accentColor;

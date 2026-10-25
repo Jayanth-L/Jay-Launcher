@@ -70,13 +70,6 @@ class _WellbeingAppState extends State<WellbeingApp> {
       theme: theme,
       home: Launcher(
         themeMode: themeMode,
-        cycleTheme: () {
-          final next =
-              (themeMode.storageValue + 1) % LauncherThemeMode.values.length;
-          _saveThemeSettings(
-            selectedMode: LauncherThemeMode.fromStorage(next),
-          );
-        },
         selectThemeMode: (mode) => _saveThemeSettings(selectedMode: mode),
         accentIndex: accentIndex,
         accentColor: scheme.primary,

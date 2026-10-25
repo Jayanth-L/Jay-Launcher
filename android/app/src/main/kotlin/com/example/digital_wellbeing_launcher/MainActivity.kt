@@ -2,6 +2,7 @@ package com.example.digital_wellbeing_launcher
 
 import android.content.Intent
 import android.content.ComponentName
+import android.app.ActivityOptions
 import android.app.AppOpsManager
 import android.app.role.RoleManager
 import android.app.usage.UsageStatsManager
@@ -343,7 +344,12 @@ class MainActivity : FlutterActivity() {
                                 if (launchIntent == null) {
                                     result.error("APP_NOT_LAUNCHABLE", "This app cannot be opened", null)
                                 } else {
-                                    startActivity(launchIntent)
+                                    val launchOptions = ActivityOptions.makeCustomAnimation(
+                                        this,
+                                        R.anim.app_enter_from_bottom,
+                                        R.anim.app_exit_to_bottom,
+                                    )
+                                    startActivity(launchIntent, launchOptions.toBundle())
                                     result.success(null)
                                 }
                             } catch (error: Exception) {

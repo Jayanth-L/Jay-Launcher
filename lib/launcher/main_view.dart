@@ -43,28 +43,6 @@ extension _LauncherMainView on _LauncherState {
                                 Row(
                                   children: [
                                     IconButton(
-                                      tooltip:
-                                          'Change appearance (${widget.themeMode.label})',
-                                      onPressed: widget.cycleTheme,
-                                      visualDensity: VisualDensity.compact,
-                                      style: IconButton.styleFrom(
-                                        backgroundColor:
-                                            dark ? panel : appCanvas,
-                                      ),
-                                      icon: Icon(
-                                        switch (widget.themeMode) {
-                                          LauncherThemeMode.light =>
-                                            Icons.nightlight_outlined,
-                                          LauncherThemeMode.dark =>
-                                            Icons.dark_mode_outlined,
-                                          LauncherThemeMode.black =>
-                                            Icons.brightness_2_outlined,
-                                        },
-                                        size: 17,
-                                        color: fg,
-                                      ),
-                                    ),
-                                    IconButton(
                                       tooltip: 'Settings',
                                       visualDensity: VisualDensity.compact,
                                       style: IconButton.styleFrom(
@@ -102,7 +80,7 @@ extension _LauncherMainView on _LauncherState {
                               behavior: HitTestBehavior.translucent,
                               onHorizontalDragEnd: (details) {
                                 final velocity = details.primaryVelocity ?? 0;
-                                if (velocity < -300 && tab < 3) {
+                                if (velocity < -300 && tab < 2) {
                                   _swipeToTab(tab + 1);
                                 }
                                 if (velocity > 300 && tab > 0) {

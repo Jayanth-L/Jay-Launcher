@@ -28,9 +28,9 @@ extension _LauncherHomeView on _LauncherState {
             text: TextSpan(
               style: serif,
               children: [
-                const TextSpan(text: 'Good morning,\n'),
+                TextSpan(text: '$_timeGreeting,\n'),
                 TextSpan(
-                  text: 'stay intentional.',
+                  text: _isNight ? 'Zzzzz!' : 'stay intentional.',
                   style: TextStyle(
                     fontStyle: FontStyle.italic,
                     color: accent,
@@ -49,6 +49,19 @@ extension _LauncherHomeView on _LauncherState {
           _appLimitsSummary(),
         ],
       );
+
+  String get _timeGreeting {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    if (hour >= 17 && hour < 21) return 'Good evening';
+    return 'Good night';
+  }
+
+  bool get _isNight {
+    final hour = DateTime.now().hour;
+    return hour >= 21 || hour < 5;
+  }
 
   int get _totalDailyUsageSeconds => installedApps.fold<int>(
         0,
