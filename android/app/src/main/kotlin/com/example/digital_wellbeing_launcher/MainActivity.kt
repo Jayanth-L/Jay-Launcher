@@ -80,6 +80,33 @@ class MainActivity : FlutterActivity() {
                         result.success(policyPrefs.getString("policies_json", "[]"))
                     }
 
+                    "getThemeSettings" -> {
+                        result.success(
+                            mapOf(
+                                "dark" to policyPrefs.getBoolean("theme_dark", false),
+                                "accentIndex" to policyPrefs.getInt("theme_accent_index", 0),
+                            ),
+                        )
+                    }
+
+                    "saveThemeSettings" -> {
+                        val dark = call.argument<Boolean>("dark")
+                        val accentIndex = call.argument<Int>("accentIndex")
+                        if (dark == null || accentIndex == null) {
+                            result.error(
+                                "INVALID_THEME_SETTINGS",
+                                "Theme settings are incomplete",
+                                null,
+                            )
+                        } else {
+                            policyPrefs.edit()
+                                .putBoolean("theme_dark", dark)
+                                .putInt("theme_accent_index", accentIndex.coerceIn(0, 4))
+                                .apply()
+                            result.success(null)
+                        }
+                    }
+
                     "getFavoriteApps" -> {
                         val packages = policyPrefs.getString("favorite_packages", "[]") ?: "[]"
                         try {

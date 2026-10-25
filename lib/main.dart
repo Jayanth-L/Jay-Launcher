@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 void main() => runApp(const WellbeingApp());
 
-const _sage = Color(0xff66715b);
 const _ink = Color(0xff20211e);
 const _muted = Color(0xff81827a);
 const _paper = Color(0xfff5f4ef);
@@ -20,6 +19,25 @@ const _palette = [
   Color(0xffe7dfc9),
   Color(0xffd8e1e0),
   Color(0xffe4d9c8),
+];
+const _settingsChannel = MethodChannel(
+  'com.example.digital_wellbeing_launcher/apps',
+);
+
+class AccentChoice {
+  const AccentChoice(this.name, this.seed, this.icon);
+
+  final String name;
+  final Color seed;
+  final IconData icon;
+}
+
+const _accentChoices = [
+  AccentChoice('Sage', Color(0xff66715b), Icons.eco_outlined),
+  AccentChoice('Ocean', Color(0xff4d7488), Icons.water_outlined),
+  AccentChoice('Plum', Color(0xff79648a), Icons.local_florist_outlined),
+  AccentChoice('Terracotta', Color(0xffa86651), Icons.wb_sunny_outlined),
+  AccentChoice('Amber', Color(0xff94723e), Icons.light_mode_outlined),
 ];
 
 class InstalledApp {
@@ -76,10 +94,47 @@ class WellbeingApp extends StatefulWidget {
 
 class _WellbeingAppState extends State<WellbeingApp> {
   bool dark = false;
+  int accentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadThemeSettings();
+  }
+
+  Future<void> _loadThemeSettings() async {
+    try {
+      final settings = await _settingsChannel.invokeMapMethod<String, dynamic>(
+        'getThemeSettings',
+      );
+      if (!mounted || settings == null) return;
+      setState(() {
+        dark = settings['dark'] as bool? ?? dark;
+        accentIndex = (settings['accentIndex'] as int? ?? accentIndex)
+            .clamp(0, _accentChoices.length - 1);
+      });
+    } on PlatformException {
+      // Use the built-in appearance defaults when native preferences are unavailable.
+    } on MissingPluginException {
+      // Use the built-in appearance defaults when native preferences are unavailable.
+    }
+  }
+
+  void _saveThemeSettings({bool? isDark, int? selectedAccent}) {
+    if (isDark != null) dark = isDark;
+    if (selectedAccent != null) accentIndex = selectedAccent;
+    setState(() {});
+    _settingsChannel.invokeMethod<void>('saveThemeSettings', {
+      'dark': dark,
+      'accentIndex': accentIndex,
+    }).catchError((Object _) {});
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedAccent = _accentChoices[accentIndex];
     final scheme = ColorScheme.fromSeed(
-      seedColor: _sage,
+      seedColor: selectedAccent.seed,
       brightness: dark ? Brightness.dark : Brightness.light,
     );
     return MaterialApp(
@@ -95,16 +150,29 @@ class _WellbeingAppState extends State<WellbeingApp> {
       ),
       home: Launcher(
         dark: dark,
-        toggleTheme: () => setState(() => dark = !dark),
+        toggleTheme: () => _saveThemeSettings(isDark: !dark),
+        accentIndex: accentIndex,
+        accentColor: scheme.primary,
+        selectAccent: (index) => _saveThemeSettings(selectedAccent: index),
       ),
     );
   }
 }
 
 class Launcher extends StatefulWidget {
-  const Launcher({super.key, required this.dark, required this.toggleTheme});
+  const Launcher({
+    super.key,
+    required this.dark,
+    required this.toggleTheme,
+    required this.accentIndex,
+    required this.accentColor,
+    required this.selectAccent,
+  });
   final bool dark;
   final VoidCallback toggleTheme;
+  final int accentIndex;
+  final Color accentColor;
+  final ValueChanged<int> selectAccent;
   @override
   State<Launcher> createState() => _LauncherState();
 }
@@ -550,16 +618,16 @@ class _LauncherState extends State<Launcher>
   Color get line => dark ? const Color(0xff242424) : _line;
   Color get panel => dark ? const Color(0xff111111) : const Color(0xffefeee9);
   Color get card => dark ? const Color(0xff111111) : _paper;
-  Color get accent => dark ? const Color(0xffaab69e) : const Color(0xff526049);
+  Color get accent => widget.accentColor;
   Color get inactive =>
       dark ? const Color(0xffa09f97) : const Color(0xff77786f);
-  Color get focusSurface =>
-      dark ? const Color(0xff182018) : const Color(0xffdce2d5);
+  Color get focusSurface => Color.lerp(
+      dark ? const Color(0xff101510) : _paper, accent, dark ? .23 : .17)!;
   Color get focusBadge => dark ? const Color(0xff283229) : Colors.white;
   Color get focusInk =>
       dark ? const Color(0xffe7ebe2) : const Color(0xff30362b);
-  Color get metricsSurface =>
-      dark ? const Color(0xff141a14) : const Color(0xffe2e8dc);
+  Color get metricsSurface => Color.lerp(
+      dark ? const Color(0xff101110) : _paper, accent, dark ? .16 : .2)!;
   Color get alertSurface =>
       dark ? const Color(0xff35251f) : const Color(0xffebe1dc);
   Color get alertInk =>
@@ -629,10 +697,11 @@ class _LauncherState extends State<Launcher>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  TimeOfDay.now().format(context),
+                                  'Hey, Jay',
                                   style: sans.copyWith(
-                                    fontSize: 13,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w600,
+                                    letterSpacing: -.2,
                                   ),
                                 ),
                                 Row(
@@ -647,6 +716,19 @@ class _LauncherState extends State<Launcher>
                                         dark
                                             ? Icons.wb_sunny_outlined
                                             : Icons.nightlight_outlined,
+                                        size: 17,
+                                        color: fg,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Settings',
+                                      visualDensity: VisualDensity.compact,
+                                      style: IconButton.styleFrom(
+                                        backgroundColor: dark ? panel : _canvas,
+                                      ),
+                                      onPressed: () => setState(() => tab = 3),
+                                      icon: Icon(
+                                        Icons.settings_outlined,
                                         size: 17,
                                         color: fg,
                                       ),
@@ -674,7 +756,7 @@ class _LauncherState extends State<Launcher>
                               behavior: HitTestBehavior.translucent,
                               onHorizontalDragEnd: (details) {
                                 final velocity = details.primaryVelocity ?? 0;
-                                if (velocity < -300 && tab < 2) {
+                                if (velocity < -300 && tab < 3) {
                                   _swipeToTab(tab + 1);
                                 }
                                 if (velocity > 300 && tab > 0) {
@@ -720,7 +802,11 @@ class _LauncherState extends State<Launcher>
                                           24,
                                           112,
                                         ),
-                                        child: tab == 0 ? _home() : _insights(),
+                                        child: switch (tab) {
+                                          0 => _home(),
+                                          2 => _insights(),
+                                          _ => _settings(),
+                                        },
                                       ),
                               ),
                             ),
@@ -1239,7 +1325,7 @@ class _LauncherState extends State<Launcher>
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: active ? _sage : focusSurface,
+          color: active ? accent : focusSurface,
           borderRadius: BorderRadius.circular(28),
         ),
         child: Row(
@@ -1258,7 +1344,7 @@ class _LauncherState extends State<Launcher>
                     child: Icon(
                       active ? Icons.access_time : Icons.spa_outlined,
                       size: 21,
-                      color: active ? _sage : focusInk,
+                      color: active ? accent : focusInk,
                     ),
                   ),
                   const SizedBox(height: 13),
@@ -2173,6 +2259,157 @@ class _LauncherState extends State<Launcher>
     );
   }
 
+  Widget _settings() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'PREFERENCES',
+            style: sans.copyWith(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2,
+              color: sub,
+            ),
+          ),
+          Text('Make it yours.', style: serif),
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: panel,
+              border: Border.all(color: line),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                    dark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                    color: accent),
+                const SizedBox(width: 13),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Dark appearance',
+                          style: sans.copyWith(fontWeight: FontWeight.w600)),
+                      Text(
+                        'Use a darker background throughout the launcher.',
+                        style: sans.copyWith(fontSize: 11, color: sub),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch.adaptive(
+                  value: dark,
+                  activeThumbColor: accent,
+                  onChanged: (_) => widget.toggleTheme(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 26),
+          Text(
+            'ACCENT COLOR',
+            style: sans.copyWith(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.8,
+              color: sub,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'Choose an accent. Matching light and dark palettes are applied automatically.',
+            style: sans.copyWith(fontSize: 12, color: sub),
+          ),
+          const SizedBox(height: 14),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: _accentChoices.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              mainAxisExtent: 78,
+            ),
+            itemBuilder: (context, index) {
+              final choice = _accentChoices[index];
+              final selected = widget.accentIndex == index;
+              return Material(
+                color: panel,
+                borderRadius: BorderRadius.circular(16),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () => widget.selectAccent(index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 13),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: selected ? accent : line,
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 17,
+                          backgroundColor: choice.seed,
+                          child: Icon(
+                            choice.icon,
+                            size: 17,
+                            color: choice.seed.computeLuminance() > .5
+                                ? const Color(0xff30362b)
+                                : Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(choice.name,
+                              style:
+                                  sans.copyWith(fontWeight: FontWeight.w500)),
+                        ),
+                        if (selected) Icon(Icons.check_circle, color: accent),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: metricsSurface,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.palette_outlined, color: accent),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${_accentChoices[widget.accentIndex].name} accent · ${dark ? 'dark' : 'light'} palette',
+                    style: sans.copyWith(fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+
   Widget _bottomNav() => Container(
         height: 76,
         decoration: BoxDecoration(
@@ -2185,6 +2422,7 @@ class _LauncherState extends State<Launcher>
             _nav(0, Icons.spa_outlined, 'Home'),
             _nav(1, Icons.grid_view_rounded, 'Apps'),
             _nav(2, Icons.bar_chart_rounded, 'Insights'),
+            _nav(3, Icons.settings_outlined, 'Settings'),
           ],
         ),
       );
