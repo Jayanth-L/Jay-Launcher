@@ -12,14 +12,14 @@ void main() {
     );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
-          if (call.method == 'getInstalledApps') {
-            return [
-              {'label': 'Calendar', 'packageName': 'com.example.calendar'},
-              {'label': 'Camera', 'packageName': 'com.example.camera'},
-            ];
-          }
-          return null;
-        });
+      if (call.method == 'getInstalledApps') {
+        return [
+          {'label': 'Calendar', 'packageName': 'com.example.calendar'},
+          {'label': 'Camera', 'packageName': 'com.example.camera'},
+        ];
+      }
+      return null;
+    });
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(appsChannel, null);
@@ -28,7 +28,7 @@ void main() {
     await tester.pumpWidget(const WellbeingApp());
 
     expect(find.text('Good morning,\nstay intentional.'), findsOneWidget);
-    expect(find.text('Your essentials'), findsOneWidget);
+    expect(find.text('App limits'), findsOneWidget);
 
     await tester.tap(find.text('Apps'));
     await tester.pumpAndSettle();

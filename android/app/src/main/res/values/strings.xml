@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_limit_service_name">Digital Wellbeing app limits</string>
+    <string name="app_limit_service_description">Applies the daily limits and allowed hours you configure for apps.</string>
+</resources>
