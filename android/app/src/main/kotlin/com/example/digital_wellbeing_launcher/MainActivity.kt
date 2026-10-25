@@ -81,18 +81,26 @@ class MainActivity : FlutterActivity() {
                     }
 
                     "getThemeSettings" -> {
+                        val savedMode = if (policyPrefs.contains("theme_mode")) {
+                            policyPrefs.getInt("theme_mode", 0)
+                        } else if (policyPrefs.getBoolean("theme_dark", false)) {
+                            2
+                        } else {
+                            0
+                        }
                         result.success(
                             mapOf(
-                                "dark" to policyPrefs.getBoolean("theme_dark", false),
+                                "mode" to savedMode,
+                                "dark" to (savedMode != 0),
                                 "accentIndex" to policyPrefs.getInt("theme_accent_index", 0),
                             ),
                         )
                     }
 
                     "saveThemeSettings" -> {
-                        val dark = call.argument<Boolean>("dark")
+                        val mode = call.argument<Int>("mode")
                         val accentIndex = call.argument<Int>("accentIndex")
-                        if (dark == null || accentIndex == null) {
+                        if (mode == null || accentIndex == null) {
                             result.error(
                                 "INVALID_THEME_SETTINGS",
                                 "Theme settings are incomplete",
@@ -100,7 +108,8 @@ class MainActivity : FlutterActivity() {
                             )
                         } else {
                             policyPrefs.edit()
-                                .putBoolean("theme_dark", dark)
+                                .putInt("theme_mode", mode.coerceIn(0, 2))
+                                .putBoolean("theme_dark", mode != 0)
                                 .putInt("theme_accent_index", accentIndex.coerceIn(0, 4))
                                 .apply()
                             result.success(null)
