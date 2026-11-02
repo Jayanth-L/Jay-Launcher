@@ -1,0 +1,5 @@
+package com.example.digital_wellbeing_launcher
+
+import android.service.notification.NotificationListenerService
+
+class MediaSessionNotificationListener : NotificationListenerService()

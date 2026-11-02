@@ -14,15 +14,7 @@ extension _LauncherHomeView on _LauncherState {
             _enforcementSetupCard(),
             const SizedBox(height: 20),
           ],
-          Text(
-            _dateLabel(),
-            style: sans.copyWith(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2.1,
-              color: sub,
-            ),
-          ),
+          _homeDateLabel(),
           const SizedBox(height: 9),
           RichText(
             text: TextSpan(
@@ -39,6 +31,13 @@ extension _LauncherHomeView on _LauncherState {
               ],
             ),
           ),
+          if (!checkingMediaSessionAccess &&
+              (spotifyPlayback != null || !mediaSessionAccessEnabled)) ...[
+            const SizedBox(height: 18),
+            spotifyPlayback != null
+                ? _spotifyNowPlayingCard()
+                : _spotifyAccessCard(),
+          ],
           const SizedBox(height: 25),
           _focusCard(),
           const SizedBox(height: 25),
@@ -49,6 +48,245 @@ extension _LauncherHomeView on _LauncherState {
           _appLimitsSummary(),
         ],
       );
+
+  Widget _spotifyAccessCard() => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: panel,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: line),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.music_note_rounded, color: accent, size: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SPOTIFY CONTROLS',
+                    style: sans.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Android notification access can read notifications. Here it’s used for Spotify track info and playback controls.',
+                    style: sans.copyWith(fontSize: 12, color: sub),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _openSpotifyAccessSettings,
+              child: const Text('Enable'),
+            ),
+          ],
+        ),
+      );
+
+  Widget _spotifyNowPlayingCard() {
+    final playback = spotifyPlayback!;
+    final title = playback['title'] as String;
+    final artist = playback['artist'] as String? ?? 'Spotify';
+    final isPlaying = playback['isPlaying'] as bool? ?? false;
+    final artwork = playback['artwork'];
+    final hasArtwork = artwork is Uint8List && artwork.isNotEmpty;
+    const artworkScale = 1.04;
+    final titleColor = hasArtwork ? Colors.white : fg;
+    final detailColor = hasArtwork ? Colors.white70 : sub;
+
+    return Container(
+      width: double.infinity,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: panel,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: hasArtwork ? Colors.white24 : line),
+      ),
+      child: Stack(
+        children: [
+          if (hasArtwork)
+            Positioned.fill(
+              child: Transform.scale(
+                scale: artworkScale,
+                child: Image.memory(
+                  artwork,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.expand(),
+                ),
+              ),
+            ),
+          if (hasArtwork)
+            Positioned.fill(
+              child: Transform.scale(
+                scale: artworkScale,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        accent.withValues(alpha: 0.35),
+                        const Color(0xcc10110f),
+                        const Color(0xf210110f),
+                      ],
+                      stops: const [0, 0.42, 1],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 15, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'NOW PLAYING · SPOTIFY',
+                  style: sans.copyWith(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.4,
+                    color: detailColor,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: hasArtwork
+                            ? Colors.white.withValues(alpha: 0.14)
+                            : (dark
+                                ? const Color(0xff242820)
+                                : const Color(0xffe2e8dc)),
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                      child: Icon(
+                        Icons.music_note_rounded,
+                        color: hasArtwork ? Colors.white : accent,
+                        size: 25,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: sans.copyWith(
+                              color: titleColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: sans.copyWith(
+                              color: detailColor,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      tooltip: 'Previous track',
+                      style: IconButton.styleFrom(
+                        foregroundColor: titleColor,
+                        backgroundColor: hasArtwork
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : null,
+                      ),
+                      onPressed: spotifyControlInProgress
+                          ? null
+                          : () => _controlSpotifyPlayback('previous'),
+                      icon: const Icon(Icons.skip_previous_rounded),
+                    ),
+                    IconButton.filled(
+                      tooltip: isPlaying ? 'Pause' : 'Play',
+                      style: IconButton.styleFrom(
+                        foregroundColor:
+                            hasArtwork ? const Color(0xff151613) : null,
+                        backgroundColor: hasArtwork ? Colors.white : null,
+                      ),
+                      onPressed: spotifyControlInProgress
+                          ? null
+                          : () => _controlSpotifyPlayback('play_pause'),
+                      icon: Icon(
+                        isPlaying
+                            ? Icons.pause_rounded
+                            : Icons.play_arrow_rounded,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Next track',
+                      style: IconButton.styleFrom(
+                        foregroundColor: titleColor,
+                        backgroundColor: hasArtwork
+                            ? Colors.white.withValues(alpha: 0.12)
+                            : null,
+                      ),
+                      onPressed: spotifyControlInProgress
+                          ? null
+                          : () => _controlSpotifyPlayback('next'),
+                      icon: const Icon(Icons.skip_next_rounded),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _homeDateLabel() {
+    final label = _dateLabel();
+    final comma = label.indexOf(',');
+    final isWeekend = DateTime.now().weekday >= DateTime.saturday;
+    final dateStyle = sans.copyWith(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 2.1,
+      color: sub,
+    );
+
+    return Text.rich(
+      TextSpan(
+        style: dateStyle,
+        children: [
+          TextSpan(
+            text: label.substring(0, comma),
+            style: TextStyle(color: isWeekend ? weekendInk : sub),
+          ),
+          TextSpan(text: label.substring(comma)),
+        ],
+      ),
+    );
+  }
 
   String get _timeGreeting {
     final hour = DateTime.now().hour;

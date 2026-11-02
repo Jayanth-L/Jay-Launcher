@@ -162,6 +162,7 @@ com.example.digital_wellbeing_launcher/apps
 | Appearance | `getThemeSettings`, `saveThemeSettings` | Persist theme mode and accent index. Older installations with only the former dark boolean are mapped to Black. |
 | User profile | `getUserName`, `saveUserName` | Load and save the name collected during first-run onboarding. |
 | Favorite app actions | `openAppInfo`, `uninstallApp` | Open Android's app details page or uninstall confirmation for a package. |
+| Spotify playback | `hasMediaSessionAccess`, `openMediaSessionAccessSettings`, `getSpotifyPlayback`, `controlSpotifyPlayback` | With notification listener access, read Spotify's active media session and send play, pause, previous, and next commands. |
 | Usage Access | `hasUsageAccess`, `openUsageAccessSettings`, `getAppUsageStats`, `getWeeklyUsageStats` | Check special access, open Android settings, and query today's or the week's per-package foreground durations. Usage queries run off the UI thread. |
 | Local weather | `getCurrentWeather` | Requests coarse location when needed, reads one current location, and returns the current temperature from Open-Meteo. |
 | Enforcement service | `isEnforcementEnabled`, `openAccessibilitySettings`, `consumeEnforcementEvent`, `getDailyUsage` | Check service state, open its settings, retrieve a pending block notice, and read the service's own daily counters. |
@@ -202,6 +203,8 @@ Metrics refresh at startup and when the launcher returns to the foreground. If U
 The title bar weather chip loads the current temperature on startup using Android coarse location and Open-Meteo. If location or network access is unavailable, tapping the chip retries the request.
 
 On first launch, the app asks what name to use and stores it in the existing launcher preferences. Later launches greet the saved name in the title bar.
+
+The Home page can show Spotify's current track and playback controls below the greeting. Android requires notification listener access to read active media sessions; the launcher links to that system setting and only queries Spotify's session for this card.
 
 ## Preferences and navigation behavior
 

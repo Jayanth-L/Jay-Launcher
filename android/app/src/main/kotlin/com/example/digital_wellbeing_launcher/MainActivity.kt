@@ -2,6 +2,8 @@ package com.example.digital_wellbeing_launcher
 
 import android.content.Intent
 import android.content.ComponentName
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
 import android.net.Uri
 import android.Manifest
 import android.content.pm.PackageManager
@@ -19,9 +21,11 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.location.Geocoder
+import android.graphics.Bitmap
 import android.os.Bundle
 import java.net.HttpURLConnection
 import java.net.URL
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -40,6 +44,8 @@ class MainActivity : FlutterActivity() {
     private val weatherExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingWeatherResult: MethodChannel.Result? = null
+    private var cachedSpotifyArtworkTrack: String? = null
+    private var cachedSpotifyArtwork = byteArrayOf()
     private val channelName = "com.example.digital_wellbeing_launcher/apps"
     private val policyPrefs by lazy {
         getSharedPreferences(AppLimitAccessibilityService.PREFERENCES_NAME, MODE_PRIVATE)
@@ -55,6 +61,76 @@ class MainActivity : FlutterActivity() {
                     }
 
                     "getCurrentWeather" -> requestCurrentWeather(result)
+
+                    "hasMediaSessionAccess" -> result.success(hasMediaSessionAccess())
+
+                    "openMediaSessionAccessSettings" -> {
+                        try {
+                            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                            result.success(null)
+                        } catch (error: Exception) {
+                            result.error(
+                                "MEDIA_ACCESS_SETTINGS_UNAVAILABLE",
+                                error.localizedMessage ?: "Could not open notification access settings",
+                                null,
+                            )
+                        }
+                    }
+
+                    "getSpotifyPlayback" -> {
+                        try {
+                            result.success(getSpotifyPlayback())
+                        } catch (error: Exception) {
+                            result.error(
+                                "SPOTIFY_SESSION_UNAVAILABLE",
+                                error.localizedMessage ?: "Could not read Spotify playback",
+                                null,
+                            )
+                        }
+                    }
+
+                    "controlSpotifyPlayback" -> {
+                        val action = call.argument<String>("action")
+                        val controller = getSpotifyController()
+                        if (controller == null) {
+                            result.success(false)
+                        } else {
+                            try {
+                                when (action) {
+                                    "play_pause" -> {
+                                        if (controller.playbackState?.state ==
+                                                android.media.session.PlaybackState.STATE_PLAYING ||
+                                            controller.playbackState?.state ==
+                                                android.media.session.PlaybackState.STATE_BUFFERING ||
+                                            controller.playbackState?.state ==
+                                                android.media.session.PlaybackState.STATE_CONNECTING
+                                        ) {
+                                            controller.transportControls.pause()
+                                        } else {
+                                            controller.transportControls.play()
+                                        }
+                                    }
+                                    "next" -> controller.transportControls.skipToNext()
+                                    "previous" -> controller.transportControls.skipToPrevious()
+                                    else -> {
+                                        result.error(
+                                            "INVALID_MEDIA_ACTION",
+                                            "The playback action is not supported",
+                                            null,
+                                        )
+                                        return@setMethodCallHandler
+                                    }
+                                }
+                                result.success(true)
+                            } catch (error: Exception) {
+                                result.error(
+                                    "SPOTIFY_CONTROL_FAILED",
+                                    error.localizedMessage ?: "Could not control Spotify playback",
+                                    null,
+                                )
+                            }
+                        }
+                    }
 
                     "requestHomeRole" -> {
                         try {
@@ -486,6 +562,79 @@ class MainActivity : FlutterActivity() {
                 null,
             )
         }
+    }
+
+    private fun hasMediaSessionAccess(): Boolean {
+        val enabledListeners = Settings.Secure.getString(
+            contentResolver,
+            "enabled_notification_listeners",
+        ).orEmpty()
+        val listener = ComponentName(this, MediaSessionNotificationListener::class.java)
+        return enabledListeners.split(':').any {
+            ComponentName.unflattenFromString(it) == listener
+        }
+    }
+
+    private fun getSpotifyController(): MediaController? {
+        if (!hasMediaSessionAccess()) return null
+        val manager = getSystemService(MEDIA_SESSION_SERVICE) as? MediaSessionManager
+            ?: return null
+        val listener = ComponentName(this, MediaSessionNotificationListener::class.java)
+        return try {
+            manager.getActiveSessions(listener).firstOrNull {
+                it.packageName == "com.spotify.music"
+            }
+        } catch (_: SecurityException) {
+            null
+        }
+    }
+
+    private fun getSpotifyPlayback(): Map<String, Any>? {
+        val controller = getSpotifyController() ?: return null
+        val metadata = controller.metadata ?: return null
+        val title = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE)
+            ?.takeIf { it.isNotBlank() }
+            ?: return null
+        val artist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST)
+            .orEmpty()
+        val state = controller.playbackState?.state
+        val isPlaying = state == android.media.session.PlaybackState.STATE_PLAYING ||
+            state == android.media.session.PlaybackState.STATE_BUFFERING ||
+            state == android.media.session.PlaybackState.STATE_CONNECTING
+        val album = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM)
+            .orEmpty()
+        val trackKey = "$title\u0000$artist\u0000$album"
+        val trackChanged = trackKey != cachedSpotifyArtworkTrack
+        if (trackChanged) {
+            cachedSpotifyArtworkTrack = trackKey
+            val artwork = metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ART)
+                ?: metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_ALBUM_ART)
+                ?: metadata.getBitmap(android.media.MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+            cachedSpotifyArtwork = artwork?.let { bitmap ->
+                val ratio = minOf(1f, 512f / maxOf(bitmap.width, bitmap.height))
+                val scaledBitmap = if (ratio < 1f) {
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * ratio).toInt().coerceAtLeast(1),
+                        (bitmap.height * ratio).toInt().coerceAtLeast(1),
+                        true,
+                    )
+                } else {
+                    bitmap
+                }
+                ByteArrayOutputStream().use { output ->
+                    scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 82, output)
+                    output.toByteArray()
+                }
+            } ?: byteArrayOf()
+        }
+        val playback = mutableMapOf<String, Any>(
+            "title" to title,
+            "artist" to artist,
+            "isPlaying" to isPlaying,
+        )
+        playback["artwork"] = cachedSpotifyArtwork
+        return playback
     }
 
     override fun onRequestPermissionsResult(

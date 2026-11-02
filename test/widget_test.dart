@@ -14,6 +14,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
       if (call.method == 'getUserName') return 'Jay';
+      if (call.method == 'hasMediaSessionAccess') return true;
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},
@@ -54,6 +55,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
       if (call.method == 'getUserName') return 'Jay';
+      if (call.method == 'hasMediaSessionAccess') return true;
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},
@@ -170,6 +172,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
       if (call.method == 'getUserName') return 'Jay';
+      if (call.method == 'hasMediaSessionAccess') return true;
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},
@@ -233,6 +236,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
       if (call.method == 'getUserName') return 'Jay';
+      if (call.method == 'hasMediaSessionAccess') return true;
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},

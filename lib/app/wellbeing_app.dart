@@ -105,6 +105,7 @@ class _WellbeingAppState extends State<WellbeingApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: theme,
+      scrollBehavior: const _LauncherScrollBehavior(),
       home: loadingUserName
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : userName == null
@@ -121,6 +122,24 @@ class _WellbeingAppState extends State<WellbeingApp> {
                 ),
     );
   }
+}
+
+class _LauncherScrollBehavior extends MaterialScrollBehavior {
+  const _LauncherScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      );
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) =>
+      child;
 }
 
 class _NameOnboarding extends StatefulWidget {

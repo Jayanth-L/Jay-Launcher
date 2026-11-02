@@ -36,6 +36,12 @@ extension _LauncherThemeStyles on _LauncherState {
   Color get inactive =>
       dark ? const Color(0xff9e9e96) : const Color(0xff77786f);
 
+  Color get weekendInk => black
+      ? const Color(0xffff8a80)
+      : dark
+          ? const Color(0xffef9a91)
+          : const Color(0xffa33f38);
+
   Color get focusSurface => Color.lerp(
         black
             ? const Color(0xff121212)
