@@ -232,36 +232,39 @@ extension _LauncherHomeView on _LauncherState {
               return Material(
                 color: panel,
                 borderRadius: BorderRadius.circular(16),
-                child: InkWell(
-                  onTap: () => _launchApp(app),
-                  onLongPress: () => _toggleFavorite(app),
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: line.withValues(alpha: 0.6)),
-                    ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _appIcon(
-                          app,
-                          size: 38,
-                          background: iconBackground(index),
-                          radius: 13,
-                        ),
-                        const SizedBox(height: 6),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: Text(
-                            app.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: sans.copyWith(fontSize: 10),
+                child: GestureDetector(
+                  onLongPressStart: (details) =>
+                      _showFavoriteMenu(app, details.globalPosition),
+                  child: InkWell(
+                    onTap: () => _launchApp(app),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: line.withValues(alpha: 0.6)),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _appIcon(
+                            app,
+                            size: 38,
+                            background: iconBackground(index),
+                            radius: 13,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 6),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              app.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: sans.copyWith(fontSize: 10),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -270,6 +273,77 @@ extension _LauncherHomeView on _LauncherState {
           ),
       ],
     );
+  }
+
+  Future<void> _showFavoriteMenu(
+    InstalledApp app,
+    Offset globalPosition,
+  ) async {
+    final screenSize = MediaQuery.sizeOf(context);
+    final action = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPosition.dx,
+        globalPosition.dy,
+        screenSize.width - globalPosition.dx,
+        screenSize.height - globalPosition.dy,
+      ),
+      items: const [
+        PopupMenuItem(
+          value: 'uninstall',
+          child: _FavoriteMenuLabel(
+            icon: Icons.delete_outline,
+            label: 'Uninstall app',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'info',
+          child: _FavoriteMenuLabel(
+            icon: Icons.info_outline,
+            label: 'App info',
+          ),
+        ),
+        PopupMenuItem(
+          value: 'remove',
+          child: _FavoriteMenuLabel(
+            icon: Icons.star_border,
+            label: 'Remove from favourites',
+          ),
+        ),
+      ],
+    );
+
+    switch (action) {
+      case 'uninstall':
+        await _runFavoriteAppAction('uninstallApp', app);
+        break;
+      case 'info':
+        await _runFavoriteAppAction('openAppInfo', app);
+        break;
+      case 'remove':
+        await _toggleFavorite(app);
+        break;
+      case null:
+        break;
+    }
+  }
+
+  Future<void> _runFavoriteAppAction(String method, InstalledApp app) async {
+    try {
+      await launcherChannel.invokeMethod<void>(method, {
+        'packageName': app.packageName,
+      });
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message ?? 'Could not open app action.')),
+      );
+    } on MissingPluginException {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This app action is unavailable.')),
+      );
+    }
   }
 
   Widget _enforcementSetupCard() => Container(
@@ -519,8 +593,9 @@ extension _LauncherHomeView on _LauncherState {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color:
-                          active ? actionInk.withValues(alpha: 0.15) : focusBadge,
+                      color: active
+                          ? actionInk.withValues(alpha: 0.15)
+                          : focusBadge,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -536,7 +611,8 @@ extension _LauncherHomeView on _LauncherState {
                     active ? 'FOCUS IN PROGRESS' : 'READY TO FOCUS?',
                     style: TextStyle(
                       fontFamily: GoogleFonts.dmSans().fontFamily,
-                      color: active ? actionInk.withValues(alpha: 0.75) : focusSub,
+                      color:
+                          active ? actionInk.withValues(alpha: 0.75) : focusSub,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.8,
@@ -582,4 +658,20 @@ extension _LauncherHomeView on _LauncherState {
       ),
     );
   }
+}
+
+class _FavoriteMenuLabel extends StatelessWidget {
+  const _FavoriteMenuLabel({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 12),
+          Text(label),
+        ],
+      );
 }

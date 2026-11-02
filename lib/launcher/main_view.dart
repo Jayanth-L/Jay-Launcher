@@ -33,7 +33,7 @@ extension _LauncherMainView on _LauncherState {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Hey, Jay',
+                                  'Hey, ${widget.displayName}!',
                                   style: sans.copyWith(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
@@ -60,35 +60,53 @@ extension _LauncherMainView on _LauncherState {
                                       ),
                                     ),
                                     const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 4,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: dark ? panel : appCanvas,
+                                    Tooltip(
+                                      message: currentTemperatureC == null
+                                          ? 'Tap to load local weather'
+                                          : 'Temperature near ${temperatureLocationName ?? 'your location'}',
+                                      child: InkWell(
+                                        onTap: _loadCurrentWeather,
                                         borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: line.withValues(alpha: 0.6),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          CircleAvatar(
-                                            radius: 3.5,
-                                            backgroundColor: accent,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 4,
                                           ),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            '82%',
-                                            style: sans.copyWith(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              letterSpacing: .3,
+                                          decoration: BoxDecoration(
+                                            color: dark ? panel : appCanvas,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color:
+                                                  line.withValues(alpha: 0.6),
                                             ),
                                           ),
-                                        ],
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                currentTemperatureC == null
+                                                    ? Icons.location_on_outlined
+                                                    : Icons.wb_sunny_outlined,
+                                                size: 14,
+                                                color: accent,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                currentTemperatureC == null
+                                                    ? (loadingWeather
+                                                        ? '…'
+                                                        : 'Weather')
+                                                    : '${currentTemperatureC!.round()}°C',
+                                                style: sans.copyWith(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                  letterSpacing: .3,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ],

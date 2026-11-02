@@ -29,12 +29,16 @@ class _LauncherState extends State<Launcher>
   bool loadingWeeklyUsage = false;
   String? selectedWeeklyDateKey;
   bool useCalendarWeek = true;
+  double? currentTemperatureC;
+  String? temperatureLocationName;
+  bool loadingWeather = false;
   List<String> favoritePackages = [];
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _loadInstalledApps();
+    _loadCurrentWeather();
     _loadAppPolicies();
     _loadDailyUsage();
     _loadWeeklyUsage();
@@ -72,6 +76,41 @@ class _LauncherState extends State<Launcher>
   }
 
   void _updateState(VoidCallback update) => setState(update);
+
+  Future<void> _loadCurrentWeather() async {
+    if (loadingWeather) return;
+    setState(() => loadingWeather = true);
+    try {
+      final weather = await launcherChannel.invokeMapMethod<String, dynamic>(
+        'getCurrentWeather',
+      );
+      final temperature = weather?['temperatureC'];
+      final locationName = weather?['locationName'];
+      if (mounted) {
+        setState(() {
+          currentTemperatureC =
+              temperature is num ? temperature.toDouble() : null;
+          temperatureLocationName =
+              locationName is String ? locationName : null;
+          loadingWeather = false;
+        });
+      }
+    } on PlatformException {
+      if (mounted) {
+        setState(() {
+          currentTemperatureC = null;
+          loadingWeather = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          currentTemperatureC = null;
+          loadingWeather = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) => _buildLauncher(context);

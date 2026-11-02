@@ -16,11 +16,48 @@ class WellbeingApp extends StatefulWidget {
 class _WellbeingAppState extends State<WellbeingApp> {
   LauncherThemeMode themeMode = LauncherThemeMode.light;
   int accentIndex = 0;
+  String? userName;
+  bool loadingUserName = true;
 
   @override
   void initState() {
     super.initState();
     _loadThemeSettings();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    try {
+      final savedName =
+          await launcherChannel.invokeMethod<String>('getUserName');
+      if (mounted) setState(() => userName = _cleanName(savedName));
+    } on PlatformException {
+      // Show onboarding when no saved profile is available.
+    } on MissingPluginException {
+      // Show onboarding when native profile storage is unavailable.
+    } finally {
+      if (mounted) setState(() => loadingUserName = false);
+    }
+  }
+
+  String? _cleanName(String? value) {
+    final trimmed = value?.trim();
+    return trimmed == null || trimmed.isEmpty ? null : trimmed;
+  }
+
+  Future<void> _finishOnboarding(String name) async {
+    final cleanName = _cleanName(name);
+    if (cleanName == null) return;
+    try {
+      await launcherChannel.invokeMethod<void>('saveUserName', {
+        'name': cleanName,
+      });
+    } on PlatformException {
+      // Keep the name for this session even if native storage fails.
+    } on MissingPluginException {
+      // Keep the name for this session even if native storage is unavailable.
+    }
+    if (mounted) setState(() => userName = cleanName);
   }
 
   Future<void> _loadThemeSettings() async {
@@ -68,12 +105,107 @@ class _WellbeingAppState extends State<WellbeingApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: theme,
-      home: Launcher(
-        themeMode: themeMode,
-        selectThemeMode: (mode) => _saveThemeSettings(selectedMode: mode),
-        accentIndex: accentIndex,
-        accentColor: scheme.primary,
-        selectAccent: (index) => _saveThemeSettings(selectedAccent: index),
+      home: loadingUserName
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : userName == null
+              ? _NameOnboarding(onComplete: _finishOnboarding)
+              : Launcher(
+                  displayName: userName!,
+                  themeMode: themeMode,
+                  selectThemeMode: (mode) =>
+                      _saveThemeSettings(selectedMode: mode),
+                  accentIndex: accentIndex,
+                  accentColor: scheme.primary,
+                  selectAccent: (index) =>
+                      _saveThemeSettings(selectedAccent: index),
+                ),
+    );
+  }
+}
+
+class _NameOnboarding extends StatefulWidget {
+  const _NameOnboarding({required this.onComplete});
+
+  final ValueChanged<String> onComplete;
+
+  @override
+  State<_NameOnboarding> createState() => _NameOnboardingState();
+}
+
+class _NameOnboardingState extends State<_NameOnboarding> {
+  final _nameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _continue() {
+    final name = _nameController.text.trim();
+    if (name.isNotEmpty) widget.onComplete(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 430),
+            child: Padding(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wb_sunny_outlined,
+                      color: colors.primary, size: 28),
+                  const SizedBox(height: 28),
+                  Text(
+                    'A little more personal',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.8,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'What should we call you?',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: colors.onSurfaceVariant,
+                        ),
+                  ),
+                  const SizedBox(height: 28),
+                  TextField(
+                    key: const ValueKey('onboarding_name_field'),
+                    controller: _nameController,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.done,
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _continue(),
+                    decoration: const InputDecoration(
+                      labelText: 'Your name',
+                      hintText: 'Name',
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _nameController.text.trim().isEmpty
+                          ? null
+                          : _continue,
+                      child: const Text('Continue'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

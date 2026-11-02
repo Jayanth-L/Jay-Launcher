@@ -13,6 +13,7 @@ void main() {
     );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
+      if (call.method == 'getUserName') return 'Jay';
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},
@@ -42,7 +43,9 @@ void main() {
     expect(find.text('WELLBEING'), findsOneWidget);
   });
 
-  testWidgets('insights tab displays everyday week usage graph and handles day selection', (
+  testWidgets(
+      'insights tab displays everyday week usage graph and handles day selection',
+      (
     WidgetTester tester,
   ) async {
     const appsChannel = MethodChannel(
@@ -50,6 +53,7 @@ void main() {
     );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
+      if (call.method == 'getUserName') return 'Jay';
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},
@@ -62,7 +66,7 @@ void main() {
       if (call.method == 'getAppUsageStats') {
         return {
           'com.example.calendar': 3600, // 1 hour
-          'com.example.camera': 1800,   // 30 min
+          'com.example.camera': 1800, // 30 min
         };
       }
       if (call.method == 'getWeeklyUsageStats') {
@@ -165,6 +169,7 @@ void main() {
     );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
+      if (call.method == 'getUserName') return 'Jay';
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},
@@ -227,6 +232,7 @@ void main() {
     );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(appsChannel, (call) async {
+      if (call.method == 'getUserName') return 'Jay';
       if (call.method == 'getInstalledApps') {
         return [
           {'label': 'Calendar', 'packageName': 'com.example.calendar'},

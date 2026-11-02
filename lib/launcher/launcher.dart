@@ -28,12 +28,14 @@ part 'promise_dialog.dart';
 class Launcher extends StatefulWidget {
   const Launcher({
     super.key,
+    required this.displayName,
     required this.themeMode,
     required this.selectThemeMode,
     required this.accentIndex,
     required this.accentColor,
     required this.selectAccent,
   });
+  final String displayName;
   final LauncherThemeMode themeMode;
   final ValueChanged<LauncherThemeMode> selectThemeMode;
   final int accentIndex;

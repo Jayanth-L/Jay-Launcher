@@ -2,6 +2,9 @@ package com.example.digital_wellbeing_launcher
 
 import android.content.Intent
 import android.content.ComponentName
+import android.net.Uri
+import android.Manifest
+import android.content.pm.PackageManager
 import android.app.ActivityOptions
 import android.app.AppOpsManager
 import android.app.role.RoleManager
@@ -12,6 +15,13 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.os.Process
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.location.Geocoder
+import android.os.Bundle
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -23,10 +33,13 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     companion object {
         private const val HOME_ROLE_REQUEST_CODE = 7401
+        private const val WEATHER_LOCATION_REQUEST_CODE = 7402
     }
 
     private val appQueryExecutor = Executors.newSingleThreadExecutor()
+    private val weatherExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingWeatherResult: MethodChannel.Result? = null
     private val channelName = "com.example.digital_wellbeing_launcher/apps"
     private val policyPrefs by lazy {
         getSharedPreferences(AppLimitAccessibilityService.PREFERENCES_NAME, MODE_PRIVATE)
@@ -40,6 +53,8 @@ class MainActivity : FlutterActivity() {
                     "isDefaultHomeApp" -> {
                         result.success(isDefaultHomeApp())
                     }
+
+                    "getCurrentWeather" -> requestCurrentWeather(result)
 
                     "requestHomeRole" -> {
                         try {
@@ -97,6 +112,20 @@ class MainActivity : FlutterActivity() {
                                 "accentIndex" to policyPrefs.getInt("theme_accent_index", 0),
                             ),
                         )
+                    }
+
+                    "getUserName" -> {
+                        result.success(policyPrefs.getString("user_name", null))
+                    }
+
+                    "saveUserName" -> {
+                        val name = call.argument<String>("name")?.trim()
+                        if (name.isNullOrBlank()) {
+                            result.error("INVALID_USER_NAME", "A name is required", null)
+                        } else {
+                            policyPrefs.edit().putString("user_name", name).apply()
+                            result.success(null)
+                        }
                     }
 
                     "saveThemeSettings" -> {
@@ -407,9 +436,167 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    "openAppInfo" -> openPackageSettings(call, result, uninstall = false)
+
+                    "uninstallApp" -> openPackageSettings(call, result, uninstall = true)
+
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    private fun requestCurrentWeather(result: MethodChannel.Result) {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingWeatherResult = result
+            requestPermissions(
+                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION),
+                WEATHER_LOCATION_REQUEST_CODE,
+            )
+            return
+        }
+        findLocationAndFetchWeather(result)
+    }
+
+    private fun openPackageSettings(
+        call: io.flutter.plugin.common.MethodCall,
+        result: MethodChannel.Result,
+        uninstall: Boolean,
+    ) {
+        val packageName = call.argument<String>("packageName")
+        if (packageName.isNullOrBlank()) {
+            result.error("INVALID_PACKAGE", "A package name is required", null)
+            return
+        }
+
+        try {
+            val packageUri = Uri.parse("package:$packageName")
+            val intent = if (uninstall) {
+                Intent(Intent.ACTION_DELETE, packageUri)
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).setData(packageUri)
+            }
+            startActivity(intent)
+            result.success(null)
+        } catch (error: Exception) {
+            result.error(
+                if (uninstall) "UNINSTALL_UNAVAILABLE" else "APP_INFO_UNAVAILABLE",
+                error.localizedMessage ?: "Could not open app settings",
+                null,
+            )
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != WEATHER_LOCATION_REQUEST_CODE) return
+
+        val result = pendingWeatherResult ?: return
+        pendingWeatherResult = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            findLocationAndFetchWeather(result)
+        } else {
+            result.success(null)
+        }
+    }
+
+    @Suppress("MissingPermission", "DEPRECATION")
+    private fun findLocationAndFetchWeather(result: MethodChannel.Result) {
+        val locationManager = getSystemService(LOCATION_SERVICE) as? LocationManager
+        if (locationManager == null) {
+            result.success(null)
+            return
+        }
+
+        val provider = when {
+            locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) ->
+                LocationManager.NETWORK_PROVIDER
+            locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ->
+                LocationManager.GPS_PROVIDER
+            else -> {
+                result.success(null)
+                return
+            }
+        }
+        var completed = false
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                if (completed) return
+                completed = true
+                locationManager.removeUpdates(this)
+                weatherExecutor.execute {
+                    val weather = try {
+                        fetchCurrentWeather(location)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    mainHandler.post { result.success(weather) }
+                }
+            }
+
+            override fun onProviderDisabled(provider: String) {
+                if (!completed) {
+                    completed = true
+                    locationManager.removeUpdates(this)
+                    result.success(null)
+                }
+            }
+        }
+
+        try {
+            locationManager.requestSingleUpdate(provider, listener, mainHandler.looper)
+            mainHandler.postDelayed({
+                if (!completed) {
+                    completed = true
+                    locationManager.removeUpdates(listener)
+                    result.success(null)
+                }
+            }, 15_000L)
+        } catch (_: Exception) {
+            completed = true
+            result.success(null)
+        }
+    }
+
+    private fun fetchCurrentWeather(location: Location): Map<String, Any>? {
+        val endpoint = URL(
+            "https://api.open-meteo.com/v1/forecast" +
+                "?latitude=${location.latitude}&longitude=${location.longitude}" +
+                "&current=temperature_2m&timezone=auto",
+        )
+        val connection = endpoint.openConnection() as HttpURLConnection
+        return try {
+            connection.connectTimeout = 8_000
+            connection.readTimeout = 8_000
+            connection.requestMethod = "GET"
+            val payload = connection.inputStream.bufferedReader().use { it.readText() }
+            val temperature = org.json.JSONObject(payload)
+                .getJSONObject("current")
+                .getDouble("temperature_2m")
+            val place = try {
+                @Suppress("DEPRECATION")
+                val address = Geocoder(this, Locale.getDefault())
+                    .getFromLocation(location.latitude, location.longitude, 1)
+                    ?.firstOrNull()
+                address?.locality
+                    ?: address?.subAdminArea
+                    ?: address?.adminArea
+                    ?: address?.countryName
+            } catch (_: Exception) {
+                null
+            }
+            mapOf(
+                "temperatureC" to temperature,
+                "locationName" to (place ?: "your location"),
+            )
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun isDefaultHomeApp(): Boolean {
@@ -591,6 +778,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         appQueryExecutor.shutdown()
+        weatherExecutor.shutdown()
         super.onDestroy()
     }
 }
