@@ -25,6 +25,10 @@ class _LauncherState extends State<Launcher>
   bool checkingUsageAccess = true;
   Map<String, AppPolicy> appPolicies = {};
   Map<String, int> dailyUsageSeconds = {};
+  Map<String, Map<String, int>> weeklyUsageByDate = {};
+  bool loadingWeeklyUsage = false;
+  String? selectedWeeklyDateKey;
+  bool useCalendarWeek = true;
   List<String> favoritePackages = [];
   @override
   void initState() {
@@ -33,6 +37,7 @@ class _LauncherState extends State<Launcher>
     _loadInstalledApps();
     _loadAppPolicies();
     _loadDailyUsage();
+    _loadWeeklyUsage();
     _loadFavorites();
     _refreshLauncherRole();
     _refreshEnforcementStatus();
@@ -59,6 +64,7 @@ class _LauncherState extends State<Launcher>
     if (state == AppLifecycleState.resumed) {
       _loadInstalledApps();
       _loadDailyUsage();
+      _loadWeeklyUsage();
       _refreshLauncherRole();
       _refreshEnforcementStatus();
       _consumeEnforcementEvent();

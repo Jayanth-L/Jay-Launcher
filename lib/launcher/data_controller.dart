@@ -59,6 +59,8 @@ extension _LauncherDataController on _LauncherState {
           usageAccessEnabled = false;
           checkingUsageAccess = false;
           dailyUsageSeconds = {};
+          weeklyUsageByDate = {};
+          loadingWeeklyUsage = false;
         });
         return;
       }
@@ -71,11 +73,71 @@ extension _LauncherDataController on _LauncherState {
         checkingUsageAccess = false;
         dailyUsageSeconds = usage ?? {};
       });
+      _loadWeeklyUsage();
     } on PlatformException {
       if (mounted) _updateState(() => checkingUsageAccess = false);
     } on MissingPluginException {
       if (mounted) _updateState(() => checkingUsageAccess = false);
     }
+  }
+
+  Future<void> _loadWeeklyUsage() async {
+    try {
+      final enabled =
+          await launcherChannel.invokeMethod<bool>('hasUsageAccess') ?? false;
+      if (!mounted || !enabled) return;
+      _updateState(() => loadingWeeklyUsage = true);
+      final rawList = await launcherChannel.invokeListMethod<dynamic>(
+        'getWeeklyUsageStats',
+      );
+      if (!mounted) return;
+      final parsed = <String, Map<String, int>>{};
+      if (rawList != null) {
+        for (final item in rawList) {
+          if (item is Map) {
+            final dateKey = item['dateKey']?.toString();
+            final rawUsage = item['usage'];
+            if (dateKey != null && rawUsage is Map) {
+              final dayMap = <String, int>{};
+              for (final entry in rawUsage.entries) {
+                final val = entry.value;
+                if (val is num) {
+                  dayMap[entry.key.toString()] = val.toInt();
+                }
+              }
+              parsed[dateKey] = dayMap;
+            }
+          }
+        }
+      }
+      _updateState(() {
+        weeklyUsageByDate = parsed;
+        loadingWeeklyUsage = false;
+      });
+    } on PlatformException {
+      if (mounted) _updateState(() => loadingWeeklyUsage = false);
+    } on MissingPluginException {
+      if (mounted) _updateState(() => loadingWeeklyUsage = false);
+    }
+  }
+
+  String _formatDateKey(DateTime d) {
+    final y = d.year.toString().padLeft(4, '0');
+    final m = d.month.toString().padLeft(2, '0');
+    final day = d.day.toString().padLeft(2, '0');
+    return '$y-$m-$day';
+  }
+
+  int _dayUsageSeconds(String dateKey, {bool isToday = false}) {
+    if (isToday) {
+      return _totalDailyUsageSeconds;
+    }
+    final usageMap = weeklyUsageByDate[dateKey];
+    if (usageMap == null) return 0;
+    return installedApps.fold<int>(
+      0,
+      (total, app) => total + (usageMap[app.packageName] ?? 0),
+    );
   }
 
   Future<void> _requestUsageAccess() async {

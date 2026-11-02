@@ -160,7 +160,7 @@ com.example.digital_wellbeing_launcher/apps
 | Policies | `getAppPolicies`, `saveAppPolicies` | Read/write policy JSON and discard usage counters for apps whose daily limit was removed. |
 | Favorites | `getFavoriteApps`, `saveFavoriteApps` | Read/write the selected package-name list. |
 | Appearance | `getThemeSettings`, `saveThemeSettings` | Persist theme mode and accent index. Older installations with only the former dark boolean are mapped to Black. |
-| Usage Access | `hasUsageAccess`, `openUsageAccessSettings`, `getAppUsageStats` | Check special access, open Android settings, and query today's per-package foreground durations. Usage queries run off the UI thread. |
+| Usage Access | `hasUsageAccess`, `openUsageAccessSettings`, `getAppUsageStats`, `getWeeklyUsageStats` | Check special access, open Android settings, and query today's or the week's per-package foreground durations. Usage queries run off the UI thread. |
 | Enforcement service | `isEnforcementEnabled`, `openAccessibilitySettings`, `consumeEnforcementEvent`, `getDailyUsage` | Check service state, open its settings, retrieve a pending block notice, and read the service's own daily counters. |
 
 These values are stored in Android `SharedPreferences` named `wellbeing_launcher_policies`, shared by the activity and accessibility service. This keeps app preferences local to the device.
@@ -188,11 +188,11 @@ The Usage Access permission and Accessibility service are separate Android setti
 
 ## Usage metrics
 
-`getAppUsageStats` queries `UsageStatsManager` from local midnight to the current time. Flutter stores the returned seconds-per-package map in `dailyUsageSeconds` and uses it in:
+`getAppUsageStats` queries `UsageStatsManager` from local midnight to the current time, and `getWeeklyUsageStats` queries the historical daily usage for each day across the week. Flutter stores the returned seconds-per-package maps and uses them in:
 
 - the Home page total and most-used app summary;
 - per-app usage labels in list and grid layouts;
-- Insights total, ranking bars, and daily-limit progress.
+- Insights total, everyday weekly usage graph, ranking bars, and daily-limit progress.
 
 Metrics refresh at startup and when the launcher returns to the foreground. If Usage Access has not been granted, the UI indicates that access is needed instead of presenting the system metrics as available.
 

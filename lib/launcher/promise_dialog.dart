@@ -12,6 +12,7 @@ extension _LauncherPromiseDialog on _LauncherState {
           decoration: BoxDecoration(
             color: card,
             borderRadius: BorderRadius.circular(30),
+            border: Border.all(color: line),
           ),
           child: SingleChildScrollView(
             child: Column(
@@ -35,7 +36,7 @@ extension _LauncherPromiseDialog on _LauncherState {
                 const SizedBox(height: 14),
                 Text(
                   'A PROMISE TO YOURSELF',
-                  style: TextStyle(
+                  style: sans.copyWith(
                     color: alertInk,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -57,12 +58,12 @@ extension _LauncherPromiseDialog on _LauncherState {
                   reason == 'daily_limit'
                       ? 'You reached the daily limit you set for $name. Take a moment and return when your limit resets.'
                       : 'Your allowed hours for $name have ended for now. You can change this schedule any time in App limits.',
-                  style: TextStyle(color: sub, fontSize: 14, height: 1.7),
+                  style: sans.copyWith(color: sub, fontSize: 14, height: 1.7),
                 ),
                 const SizedBox(height: 13),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(15),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: panel,
                     border: Border.all(color: line),
@@ -70,7 +71,12 @@ extension _LauncherPromiseDialog on _LauncherState {
                   ),
                   child: Text(
                     '“I’m building a calmer life—one intentional choice at a time.”',
-                    style: TextStyle(color: sub, fontSize: 12, height: 1.6),
+                    style: GoogleFonts.newsreader(
+                      color: fg.withValues(alpha: 0.9),
+                      fontSize: 15,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 13),
@@ -78,7 +84,7 @@ extension _LauncherPromiseDialog on _LauncherState {
                   reason == 'daily_limit'
                       ? 'Your daily limit resets at midnight.'
                       : 'Your app will be available again during your next allowed window.',
-                  style: TextStyle(color: sub, fontSize: 12),
+                  style: sans.copyWith(fontSize: 12, color: sub),
                 ),
                 const SizedBox(height: 19),
                 SizedBox(
@@ -93,9 +99,12 @@ extension _LauncherPromiseDialog on _LauncherState {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Honor my promise',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                      style: sans.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: actionInk,
+                      ),
                     ),
                   ),
                 ),

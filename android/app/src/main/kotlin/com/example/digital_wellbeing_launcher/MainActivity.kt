@@ -6,6 +6,7 @@ import android.app.ActivityOptions
 import android.app.AppOpsManager
 import android.app.role.RoleManager
 import android.app.usage.UsageStatsManager
+import android.app.usage.UsageEvents
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -234,8 +235,6 @@ class MainActivity : FlutterActivity() {
                                     }
                                     return@execute
                                 }
-                                val usageManager = getSystemService(USAGE_STATS_SERVICE)
-                                    as UsageStatsManager
                                 val now = System.currentTimeMillis()
                                 val calendar = java.util.Calendar.getInstance().apply {
                                     timeInMillis = now
@@ -244,24 +243,70 @@ class MainActivity : FlutterActivity() {
                                     set(java.util.Calendar.SECOND, 0)
                                     set(java.util.Calendar.MILLISECOND, 0)
                                 }
-                                val dailyUsage = mutableMapOf<String, Long>()
-                                usageManager.queryUsageStats(
-                                    UsageStatsManager.INTERVAL_DAILY,
-                                    calendar.timeInMillis,
-                                    now,
-                                ).orEmpty().forEach { stat ->
-                                    if (stat.totalTimeInForeground > 0L) {
-                                        dailyUsage[stat.packageName] =
-                                            (dailyUsage[stat.packageName] ?: 0L) +
-                                                stat.totalTimeInForeground / 1000L
-                                    }
-                                }
+                                val dailyUsage = getScreenTimeWithFallback(calendar.timeInMillis, now)
                                 mainHandler.post { result.success(dailyUsage) }
                             } catch (error: Exception) {
                                 mainHandler.post {
                                     result.error(
                                         "USAGE_QUERY_FAILED",
                                         error.localizedMessage ?: "Could not read app usage",
+                                        null,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    "getWeeklyUsageStats" -> {
+                        appQueryExecutor.execute {
+                            try {
+                                if (!hasUsageAccess()) {
+                                    mainHandler.post {
+                                        result.error(
+                                            "USAGE_ACCESS_REQUIRED",
+                                            "Allow Usage Access in Android settings to view app usage.",
+                                            null,
+                                        )
+                                    }
+                                    return@execute
+                                }
+                                val now = System.currentTimeMillis()
+                                val todayCalendar = java.util.Calendar.getInstance().apply {
+                                    timeInMillis = now
+                                    set(java.util.Calendar.HOUR_OF_DAY, 0)
+                                    set(java.util.Calendar.MINUTE, 0)
+                                    set(java.util.Calendar.SECOND, 0)
+                                    set(java.util.Calendar.MILLISECOND, 0)
+                                }
+                                val todayMidnight = todayCalendar.timeInMillis
+                                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                                val weeklyList = mutableListOf<Map<String, Any>>()
+
+                                for (offset in 13 downTo 0) {
+                                    val dayCal = java.util.Calendar.getInstance().apply {
+                                        timeInMillis = todayMidnight
+                                        add(java.util.Calendar.DAY_OF_YEAR, -offset)
+                                    }
+                                    val startTime = dayCal.timeInMillis
+                                    val endTime = if (offset == 0) now else startTime + (24 * 60 * 60 * 1000L)
+
+                                    val dayUsage = getScreenTimeWithFallback(startTime, endTime)
+
+                                    weeklyList.add(
+                                        mapOf(
+                                            "dateKey" to dateFormat.format(dayCal.time),
+                                            "timestamp" to startTime,
+                                            "isToday" to (offset == 0),
+                                            "usage" to dayUsage,
+                                        ),
+                                    )
+                                }
+                                mainHandler.post { result.success(weeklyList) }
+                            } catch (error: Exception) {
+                                mainHandler.post {
+                                    result.error(
+                                        "USAGE_QUERY_FAILED",
+                                        error.localizedMessage ?: "Could not read weekly app usage",
                                         null,
                                     )
                                 }
@@ -413,6 +458,135 @@ class MainActivity : FlutterActivity() {
                     put("packageName", packageName)
                 }
             }
+    }
+
+    private fun calculateScreenTime(startTime: Long, endTime: Long): Map<String, Long>? {
+        if (startTime >= endTime) return emptyMap()
+
+        val usageManager = getSystemService(USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return null
+
+        // Look back up to 3 hours before startTime to catch apps already running across the window boundary
+        val queryStart = maxOf(0L, startTime - (3 * 3600 * 1000L))
+        val usageEvents = try {
+            usageManager.queryEvents(queryStart, endTime)
+        } catch (_: Exception) {
+            null
+        } ?: return null
+
+        if (!usageEvents.hasNextEvent()) {
+            return null
+        }
+
+        val appTimeMillis = mutableMapOf<String, Long>()
+        var currentPkg: String? = null
+        var currentSessionStart = 0L
+        val activeActivities = mutableSetOf<String>()
+
+        fun closeSession(sessionEnd: Long) {
+            val pkg = currentPkg ?: return
+            val sessionStart = currentSessionStart
+            currentPkg = null
+            currentSessionStart = 0L
+            activeActivities.clear()
+
+            if (sessionEnd > sessionStart) {
+                val clampedStart = maxOf(sessionStart, startTime)
+                val clampedEnd = minOf(sessionEnd, endTime)
+                if (clampedEnd > clampedStart) {
+                    val duration = clampedEnd - clampedStart
+                    appTimeMillis[pkg] = (appTimeMillis[pkg] ?: 0L) + duration
+                }
+            }
+        }
+
+        val event = UsageEvents.Event()
+
+        while (usageEvents.hasNextEvent()) {
+            usageEvents.getNextEvent(event)
+            val pkg = event.packageName ?: continue
+            val time = event.timeStamp
+
+            if (time > endTime) break
+
+            when (event.eventType) {
+                1 -> { // UsageEvents.Event.ACTIVITY_RESUMED or MOVE_TO_FOREGROUND
+                    if (pkg == packageName || pkg == "com.android.systemui") {
+                        // User returned to launcher or system UI: end any active foreground app session
+                        closeSession(time)
+                    } else {
+                        val activityKey = "$pkg/${event.className ?: "default"}"
+                        if (currentPkg != pkg) {
+                            // Switched from a different app to this app
+                            closeSession(time)
+                            currentPkg = pkg
+                            currentSessionStart = time
+                            activeActivities.add(activityKey)
+                        } else {
+                            // Another activity within the same app resumed
+                            activeActivities.add(activityKey)
+                        }
+                    }
+                }
+
+                2, 23 -> { // UsageEvents.Event.ACTIVITY_PAUSED or ACTIVITY_STOPPED
+                    if (currentPkg == pkg) {
+                        val activityKey = "$pkg/${event.className ?: "default"}"
+                        val removed = activeActivities.remove(activityKey)
+                        if (!removed && activeActivities.isNotEmpty()) {
+                            val first = activeActivities.first()
+                            activeActivities.remove(first)
+                        }
+                        if (activeActivities.isEmpty()) {
+                            closeSession(time)
+                        }
+                    }
+                }
+
+                16, 18 -> { // UsageEvents.Event.SCREEN_NON_INTERACTIVE or KEYGUARD_SHOWN
+                    closeSession(time)
+                }
+            }
+        }
+
+        // Account for any app still active in the foreground at endTime
+        if (currentPkg != null) {
+            closeSession(endTime)
+        }
+
+        val maxWindowSeconds = ((endTime - startTime) / 1000L).coerceAtLeast(0L)
+        return appTimeMillis.mapValues { (_, millis) ->
+            (millis / 1000L).coerceIn(0L, maxWindowSeconds)
+        }.filterValues { it > 0L }
+    }
+
+    private fun getScreenTimeWithFallback(startTime: Long, endTime: Long): Map<String, Long> {
+        if (startTime >= endTime) return emptyMap()
+
+        val eventBasedUsage = calculateScreenTime(startTime, endTime)
+        if (eventBasedUsage != null) {
+            return eventBasedUsage
+        }
+
+        val usageManager = getSystemService(USAGE_STATS_SERVICE) as? UsageStatsManager
+            ?: return emptyMap()
+        val aggregated = try {
+            usageManager.queryAndAggregateUsageStats(startTime, endTime)
+        } catch (_: Exception) {
+            null
+        } ?: return emptyMap()
+
+        val maxWindowSeconds = ((endTime - startTime) / 1000L).coerceAtLeast(0L)
+        val fallbackMap = mutableMapOf<String, Long>()
+        aggregated.forEach { (pkg, stat) ->
+            if (pkg != packageName && pkg != "com.android.systemui" && stat.totalTimeInForeground > 0L) {
+                val seconds = (stat.totalTimeInForeground / 1000L).coerceIn(0L, maxWindowSeconds)
+                if (seconds > 0L) {
+                    fallbackMap[pkg] = seconds
+                }
+            }
+        }
+        return fallbackMap
     }
 
     override fun onDestroy() {

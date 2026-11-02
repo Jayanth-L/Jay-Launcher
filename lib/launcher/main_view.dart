@@ -46,28 +46,49 @@ extension _LauncherMainView on _LauncherState {
                                       tooltip: 'Settings',
                                       visualDensity: VisualDensity.compact,
                                       style: IconButton.styleFrom(
-                                        backgroundColor:
-                                            dark ? panel : appCanvas,
+                                        backgroundColor: tab == 3
+                                            ? accent.withValues(alpha: 0.15)
+                                            : (dark ? panel : appCanvas),
                                       ),
-                                      onPressed: () =>
-                                          _updateState(() => tab = 3),
+                                      onPressed: () => _updateState(
+                                        () => tab = tab == 3 ? 0 : 3,
+                                      ),
                                       icon: Icon(
                                         Icons.settings_outlined,
                                         size: 17,
-                                        color: fg,
+                                        color: tab == 3 ? accent : fg,
                                       ),
                                     ),
-                                    const SizedBox(width: 5),
-                                    CircleAvatar(
-                                      radius: 4,
-                                      backgroundColor: accent,
-                                    ),
                                     const SizedBox(width: 8),
-                                    Text(
-                                      '82%',
-                                      style: sans.copyWith(
-                                        fontSize: 13,
-                                        letterSpacing: .4,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: dark ? panel : appCanvas,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: line.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 3.5,
+                                            backgroundColor: accent,
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '82%',
+                                            style: sans.copyWith(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                              letterSpacing: .3,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -138,7 +159,11 @@ extension _LauncherMainView on _LauncherState {
                         ],
                       ),
                       Positioned(
-                          left: 0, right: 0, bottom: 0, child: _bottomNav()),
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: _bottomNav(),
+                      ),
                       if (tab == 1) _alphabetScroller(),
                     ],
                   ),
@@ -154,7 +179,11 @@ extension _LauncherMainView on _LauncherState {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss promise',
-      barrierColor: const Color(0x6620211e),
+      barrierColor: black
+          ? Colors.black.withValues(alpha: .75)
+          : dark
+              ? Colors.black.withValues(alpha: .65)
+              : const Color(0x6620211e),
       transitionDuration: const Duration(milliseconds: 380),
       pageBuilder: (context, animation, secondaryAnimation) => Dialog(
         backgroundColor: Colors.transparent,

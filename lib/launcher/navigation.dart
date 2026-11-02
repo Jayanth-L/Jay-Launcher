@@ -67,30 +67,32 @@ extension _LauncherNavigation on _LauncherState {
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: letters
-                  .map((letter) {
-                    final isSelected = activeAlphabetLetter == letter;
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 120),
-                      width: 18,
-                      height: 18,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: isSelected ? accent : Colors.transparent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        letter,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : sub,
-                          fontSize: isSelected ? 10 : 9,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
-                    );
-                  })
-                  .toList(),
+              children: letters.map((letter) {
+                final isSelected = activeAlphabetLetter == letter;
+                final onBubbleColor = accent.computeLuminance() > 0.5
+                    ? const Color(0xff20211e)
+                    : Colors.white;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  width: 18,
+                  height: 18,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected ? accent : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    letter,
+                    style: TextStyle(
+                      fontFamily: GoogleFonts.dmSans().fontFamily,
+                      color: isSelected ? onBubbleColor : sub,
+                      fontSize: isSelected ? 10 : 9,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ),
@@ -99,7 +101,7 @@ extension _LauncherNavigation on _LauncherState {
   }
 
   Widget _bottomNav() => Container(
-        height: 76,
+        height: 72,
         decoration: BoxDecoration(
           color: (black
                   ? Colors.black
@@ -118,35 +120,48 @@ extension _LauncherNavigation on _LauncherState {
           ],
         ),
       );
-  Widget _nav(int index, IconData icon, String label) => InkWell(
-        onTap: () {
-          swipeAnimationTimer?.cancel();
-          _updateState(() {
-            tab = index;
-            fastPageExit = false;
-          });
-        },
-        child: SizedBox(
-          width: 74,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 20,
-                color: tab == index ? accent : inactive,
-              ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: tab == index ? accent : inactive,
-                ),
-              ),
-            ],
-          ),
+
+  Widget _nav(int index, IconData icon, String label) {
+    final isSelected = tab == index;
+    return InkWell(
+      onTap: () {
+        swipeAnimationTimer?.cancel();
+        _updateState(() {
+          tab = index;
+          fastPageExit = false;
+        });
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 76,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              isSelected ? accent.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
         ),
-      );
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected ? accent : inactive,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: sans.copyWith(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? accent : inactive,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

@@ -83,10 +83,10 @@ extension _LauncherHomeView on _LauncherState {
     final topApp = mostUsed.isEmpty ? null : mostUsed.first;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: panel,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: line),
       ),
       child: Column(
@@ -113,22 +113,51 @@ extension _LauncherHomeView on _LauncherState {
             ],
           ),
           if (checkingUsageAccess)
-            Text('Checking Usage Access…', style: sans.copyWith(color: sub))
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Checking Usage Access…',
+                style: sans.copyWith(color: sub),
+              ),
+            )
           else if (!usageAccessEnabled)
-            Text(
-              'Allow Usage Access to see today’s screen time by app.',
-              style: sans.copyWith(fontSize: 13, color: sub),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Allow Usage Access to see today’s screen time by app.',
+                style: sans.copyWith(fontSize: 13, color: sub),
+              ),
             )
           else ...[
+            const SizedBox(height: 6),
             Text(
               _formatDuration(_totalDailyUsageSeconds),
-              style: sans.copyWith(fontSize: 28, fontWeight: FontWeight.w500),
+              style: sans.copyWith(
+                fontSize: 32,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.5,
+              ),
             ),
             if (topApp != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Most used: ${topApp.label} · ${_formatDuration(dailyUsageSeconds[topApp.packageName] ?? 0)}',
-                style: sans.copyWith(fontSize: 12, color: sub),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      'Most used: ${topApp.label} · ${_formatDuration(dailyUsageSeconds[topApp.packageName] ?? 0)}',
+                      style: sans.copyWith(fontSize: 12, color: sub),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -207,28 +236,33 @@ extension _LauncherHomeView on _LauncherState {
                   onTap: () => _launchApp(app),
                   onLongPress: () => _toggleFavorite(app),
                   borderRadius: BorderRadius.circular(16),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _appIcon(
-                        app,
-                        size: 38,
-                        background:
-                            dark ? appCanvas : appIconPalette[index % 6],
-                        radius: 13,
-                      ),
-                      const SizedBox(height: 6),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Text(
-                          app.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: sans.copyWith(fontSize: 10),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: line.withValues(alpha: 0.6)),
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _appIcon(
+                          app,
+                          size: 38,
+                          background: iconBackground(index),
+                          radius: 13,
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: Text(
+                            app.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: sans.copyWith(fontSize: 10),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -240,7 +274,7 @@ extension _LauncherHomeView on _LauncherState {
 
   Widget _enforcementSetupCard() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(17),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: panel,
           border: Border.all(color: line),
@@ -248,8 +282,16 @@ extension _LauncherHomeView on _LauncherState {
         ),
         child: Row(
           children: [
-            Icon(Icons.shield_outlined, color: accent),
-            const SizedBox(width: 12),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.shield_outlined, color: accent, size: 20),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,7 +300,7 @@ extension _LauncherHomeView on _LauncherState {
                     'Turn on app limits',
                     style: sans.copyWith(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     'Enable the service to enforce your schedules.',
                     style: sans.copyWith(fontSize: 12, color: sub),
@@ -302,7 +344,9 @@ extension _LauncherHomeView on _LauncherState {
                   Text(
                     'App limits',
                     style: sans.copyWith(
-                        fontSize: 21, fontWeight: FontWeight.w500),
+                      fontSize: 21,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -349,29 +393,52 @@ extension _LauncherHomeView on _LauncherState {
               padding: const EdgeInsets.only(bottom: 8),
               child: Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: panel,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: line),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(app.label,
-                              style:
-                                  sans.copyWith(fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 3),
-                          Text(details.join(' · '),
-                              style: sans.copyWith(fontSize: 11, color: sub)),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                app.label,
+                                style:
+                                    sans.copyWith(fontWeight: FontWeight.w600),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                details.join(' · '),
+                                style: sans.copyWith(fontSize: 11, color: sub),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!enforcementEnabled)
+                          Icon(Icons.info_outline, size: 16, color: sub),
+                      ],
                     ),
-                    if (!enforcementEnabled)
-                      Icon(Icons.info_outline, size: 16, color: sub),
+                    if (policy.dailyLimitEnabled && usageAccessEnabled) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: ((dailyUsageSeconds[app.packageName] ?? 0) /
+                                  (policy.dailyLimitMinutes * 60))
+                              .clamp(0.0, 1.0),
+                          minHeight: 4,
+                          backgroundColor: progressTrack,
+                          color: accent,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -383,7 +450,7 @@ extension _LauncherHomeView on _LauncherState {
 
   Widget _launcherSetupCard() => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(17),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: panel,
           border: Border.all(color: line),
@@ -391,8 +458,16 @@ extension _LauncherHomeView on _LauncherState {
         ),
         child: Row(
           children: [
-            Icon(Icons.home_outlined, color: accent),
-            const SizedBox(width: 12),
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.home_outlined, color: accent, size: 20),
+            ),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,7 +476,7 @@ extension _LauncherHomeView on _LauncherState {
                     'Make this your launcher',
                     style: sans.copyWith(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 2),
                   Text(
                     'Set it as your default home app.',
                     style: sans.copyWith(fontSize: 12, color: sub),
@@ -430,6 +505,9 @@ extension _LauncherHomeView on _LauncherState {
         decoration: BoxDecoration(
           color: active ? accent : focusSurface,
           borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: active ? accent : line.withValues(alpha: 0.5),
+          ),
         ),
         child: Row(
           children: [
@@ -441,24 +519,24 @@ extension _LauncherHomeView on _LauncherState {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: focusBadge.withValues(alpha: dark ? .9 : .6),
+                      color:
+                          active ? actionInk.withValues(alpha: 0.15) : focusBadge,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      active ? Icons.access_time : Icons.spa_outlined,
+                      active
+                          ? Icons.access_time_filled_rounded
+                          : Icons.spa_outlined,
                       size: 21,
-                      color: active ? accent : focusInk,
+                      color: active ? actionInk : accent,
                     ),
                   ),
                   const SizedBox(height: 13),
                   Text(
                     active ? 'FOCUS IN PROGRESS' : 'READY TO FOCUS?',
                     style: TextStyle(
-                      color: active
-                          ? Colors.white70
-                          : (dark
-                              ? const Color(0xffaab69e)
-                              : const Color(0xff596052)),
+                      fontFamily: GoogleFonts.dmSans().fontFamily,
+                      color: active ? actionInk.withValues(alpha: 0.75) : focusSub,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 1.8,
@@ -470,7 +548,8 @@ extension _LauncherHomeView on _LauncherState {
                         ? '${focusSeconds ~/ 60}:${(focusSeconds % 60).toString().padLeft(2, '0')}'
                         : 'Start 25 min session',
                     style: TextStyle(
-                      color: active ? Colors.white : focusInk,
+                      fontFamily: GoogleFonts.dmSans().fontFamily,
+                      color: active ? actionInk : fg,
                       fontSize: 24,
                       fontWeight: FontWeight.w500,
                       letterSpacing: -.7,
@@ -484,16 +563,18 @@ extension _LauncherHomeView on _LauncherState {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: dark
-                    ? (black
-                        ? const Color(0xff30372f)
-                        : const Color(0xff393939))
-                    : appPaper,
+                color: active
+                    ? actionInk.withValues(alpha: 0.18)
+                    : (dark
+                        ? (black
+                            ? const Color(0xff1e1e1e)
+                            : const Color(0xff282828))
+                        : appPaper),
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 active ? Icons.stop_rounded : Icons.arrow_forward_rounded,
-                color: focusInk,
+                color: active ? actionInk : accent,
               ),
             ),
           ],

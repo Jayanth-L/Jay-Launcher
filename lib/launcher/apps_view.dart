@@ -162,7 +162,7 @@ extension _LauncherAppsView on _LauncherState {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 15),
             decoration: BoxDecoration(
-              color: dark ? panel : appCanvas,
+              color: panel,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: line.withValues(alpha: .7)),
             ),
@@ -173,6 +173,7 @@ extension _LauncherAppsView on _LauncherState {
                 Expanded(
                   child: TextField(
                     controller: controller,
+                    cursorColor: accent,
                     onChanged: (value) => _updateState(() => search = value),
                     style: sans.copyWith(fontSize: 14),
                     decoration: InputDecoration(
@@ -182,6 +183,11 @@ extension _LauncherAppsView on _LauncherState {
                         fontSize: 14,
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
@@ -223,6 +229,9 @@ extension _LauncherAppsView on _LauncherState {
     int letter,
   ) {
     final name = app.label;
+    final isConfigured = appPolicies[app.packageName]?.isConfigured ?? false;
+    final isFav = favoritePackages.contains(app.packageName);
+
     return TweenAnimationBuilder<double>(
       key: ValueKey(name),
       tween: Tween(begin: 0, end: 1),
@@ -238,18 +247,18 @@ extension _LauncherAppsView on _LauncherState {
       child: InkWell(
         onTap: () => _launchApp(app),
         onLongPress: () => _editAppPolicy(app),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.all(7),
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
           child: Row(
             children: [
               _appIcon(
                 app,
-                size: 38,
-                background: dark ? panel : appIconPalette[(index + letter) % 6],
-                radius: 12,
+                size: 40,
+                background: iconBackground(index, letter),
+                radius: 13,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -262,47 +271,45 @@ extension _LauncherAppsView on _LauncherState {
                         fontSize: 14,
                       ),
                     ),
-                    if (_appUsageLabel(app) != null ||
-                        (appPolicies[app.packageName]?.isConfigured ?? false))
+                    if (_appUsageLabel(app) != null || isConfigured)
                       Text(
                         [
                           if (_appUsageLabel(app) != null) _appUsageLabel(app)!,
-                          if (appPolicies[app.packageName]?.isConfigured ??
-                              false)
-                            _policySummary(app),
+                          if (isConfigured) _policySummary(app),
                         ].join(' · '),
-                        style: sans.copyWith(fontSize: 10, color: sub),
+                        style: sans.copyWith(fontSize: 11, color: sub),
                       ),
                   ],
                 ),
               ),
               IconButton(
-                tooltip: favoritePackages.contains(app.packageName)
-                    ? 'Remove from favourites'
-                    : 'Add to favourites',
+                tooltip: isFav ? 'Remove from favourites' : 'Add to favourites',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _toggleFavorite(app),
                 icon: Icon(
-                  favoritePackages.contains(app.packageName)
-                      ? Icons.star_rounded
-                      : Icons.star_outline_rounded,
-                  size: 18,
-                  color:
-                      favoritePackages.contains(app.packageName) ? accent : sub,
+                  isFav ? Icons.star_rounded : Icons.star_outline_rounded,
+                  size: 19,
+                  color: isFav ? accent : sub,
                 ),
               ),
               IconButton(
                 tooltip: 'Set app limits',
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _editAppPolicy(app),
-                icon: Icon(Icons.tune_rounded, size: 17, color: sub),
+                icon: Icon(
+                  Icons.tune_rounded,
+                  size: 18,
+                  color: isConfigured ? accent : sub,
+                ),
               ),
-              if ((appPolicies[app.packageName]?.isConfigured ?? false) &&
-                  !enforcementEnabled)
-                Icon(
-                  Icons.pause_circle_outline,
-                  size: 15,
-                  color: sub,
+              if (isConfigured && !enforcementEnabled)
+                Padding(
+                  padding: const EdgeInsets.only(left: 2),
+                  child: Icon(
+                    Icons.pause_circle_outline,
+                    size: 15,
+                    color: sub,
+                  ),
                 ),
             ],
           ),
@@ -313,6 +320,9 @@ extension _LauncherAppsView on _LauncherState {
 
   Widget _appGridTile(InstalledApp app, int index, int letter) {
     final name = app.label;
+    final isConfigured = appPolicies[app.packageName]?.isConfigured ?? false;
+    final isFav = favoritePackages.contains(app.packageName);
+
     return TweenAnimationBuilder<double>(
       key: ValueKey('grid-$name'),
       tween: Tween(begin: 0, end: 1),
@@ -332,7 +342,7 @@ extension _LauncherAppsView on _LauncherState {
         child: Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: dark ? panel : appCanvas,
+            color: panel,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: line.withValues(alpha: .7)),
           ),
@@ -350,7 +360,11 @@ extension _LauncherAppsView on _LauncherState {
                       visualDensity: VisualDensity.compact,
                       onPressed: () => _editAppPolicy(app),
                       tooltip: 'Set app limits',
-                      icon: Icon(Icons.tune_rounded, size: 14, color: sub),
+                      icon: Icon(
+                        Icons.tune_rounded,
+                        size: 14,
+                        color: isConfigured ? accent : sub,
+                      ),
                     ),
                   ),
                   SizedBox(
@@ -360,34 +374,23 @@ extension _LauncherAppsView on _LauncherState {
                       padding: EdgeInsets.zero,
                       visualDensity: VisualDensity.compact,
                       onPressed: () => _toggleFavorite(app),
-                      tooltip: favoritePackages.contains(app.packageName)
+                      tooltip: isFav
                           ? 'Remove from favourites'
                           : 'Add to favourites',
                       icon: Icon(
-                        favoritePackages.contains(app.packageName)
-                            ? Icons.star_rounded
-                            : Icons.star_outline_rounded,
+                        isFav ? Icons.star_rounded : Icons.star_outline_rounded,
                         size: 15,
-                        color: favoritePackages.contains(app.packageName)
-                            ? accent
-                            : sub,
+                        color: isFav ? accent : sub,
                       ),
                     ),
                   ),
                 ],
               ),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _appIcon(
-                    app,
-                    size: 42,
-                    background: dark
-                        ? const Color(0xff242424)
-                        : appIconPalette[(index + letter) % 6],
-                    radius: 14,
-                  ),
-                ],
+              _appIcon(
+                app,
+                size: 42,
+                background: iconBackground(index, letter),
+                radius: 14,
               ),
               const SizedBox(height: 9),
               Text(
@@ -397,13 +400,11 @@ extension _LauncherAppsView on _LauncherState {
                 textAlign: TextAlign.center,
                 style: sans.copyWith(fontSize: 12, fontWeight: FontWeight.w500),
               ),
-              if (_appUsageLabel(app) != null ||
-                  (appPolicies[app.packageName]?.isConfigured ?? false))
+              if (_appUsageLabel(app) != null || isConfigured)
                 Text(
                   [
                     if (_appUsageLabel(app) != null) _appUsageLabel(app)!,
-                    if (appPolicies[app.packageName]?.isConfigured ?? false)
-                      _policySummary(app),
+                    if (isConfigured) _policySummary(app),
                   ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -435,8 +436,9 @@ extension _LauncherAppsView on _LauncherState {
         child: Text(
           _appInitials(app.label),
           style: sans.copyWith(
-            color: background.computeLuminance() > .5
-                ? const Color(0xff30362b)
+            fontSize: size * 0.36,
+            color: background.computeLuminance() > .45
+                ? const Color(0xff20211e)
                 : const Color(0xfff2f2ed),
             fontWeight: FontWeight.w600,
           ),

@@ -56,7 +56,7 @@ extension _LauncherSettingsView on _LauncherState {
               final choice = accentChoices[index];
               final selected = widget.accentIndex == index;
               return Material(
-                color: panel,
+                color: selected ? accent.withValues(alpha: 0.08) : panel,
                 borderRadius: BorderRadius.circular(16),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
@@ -79,17 +79,27 @@ extension _LauncherSettingsView on _LauncherState {
                             choice.icon,
                             size: 17,
                             color: choice.seed.computeLuminance() > .5
-                                ? const Color(0xff30362b)
+                                ? const Color(0xff20211e)
                                 : Colors.white,
                           ),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
-                          child: Text(choice.name,
-                              style:
-                                  sans.copyWith(fontWeight: FontWeight.w500)),
+                          child: Text(
+                            choice.name,
+                            style: sans.copyWith(
+                              fontWeight:
+                                  selected ? FontWeight.w600 : FontWeight.w500,
+                              color: selected ? fg : sub,
+                            ),
+                          ),
                         ),
-                        if (selected) Icon(Icons.check_circle, color: accent),
+                        if (selected)
+                          Icon(
+                            Icons.check_circle_rounded,
+                            color: accent,
+                            size: 20,
+                          ),
                       ],
                     ),
                   ),
@@ -104,10 +114,18 @@ extension _LauncherSettingsView on _LauncherState {
             decoration: BoxDecoration(
               color: metricsSurface,
               borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: line.withValues(alpha: 0.6)),
             ),
             child: Row(
               children: [
-                Icon(Icons.palette_outlined, color: accent),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.palette_outlined, color: accent, size: 18),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -116,14 +134,26 @@ extension _LauncherSettingsView on _LauncherState {
                   ),
                 ),
                 Container(
-                  width: 28,
-                  height: 28,
+                  width: 26,
+                  height: 26,
                   decoration: BoxDecoration(
                     color: accent,
                     shape: BoxShape.circle,
+                    border: Border.all(color: fg.withValues(alpha: 0.2)),
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          Center(
+            child: Text(
+              'Still Launcher · One intentional choice at a time.',
+              style: GoogleFonts.newsreader(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: sub,
+              ),
             ),
           ),
         ],
@@ -145,7 +175,7 @@ extension _LauncherSettingsView on _LauncherState {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: panel,
+        color: selected ? accent.withValues(alpha: 0.08) : panel,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
           borderRadius: BorderRadius.circular(16),
@@ -161,20 +191,54 @@ extension _LauncherSettingsView on _LauncherState {
             ),
             child: Row(
               children: [
-                Icon(icon, color: accent),
-                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? accent.withValues(alpha: 0.15)
+                        : line.withValues(alpha: 0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    icon,
+                    color: selected ? accent : sub,
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(mode.label,
-                          style: sans.copyWith(fontWeight: FontWeight.w600)),
-                      Text(description,
-                          style: sans.copyWith(fontSize: 11, color: sub)),
+                      Text(
+                        mode.label,
+                        style: sans.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: selected ? fg : sub,
+                        ),
+                      ),
+                      Text(
+                        description,
+                        style: sans.copyWith(fontSize: 11, color: sub),
+                      ),
                     ],
                   ),
                 ),
-                if (selected) Icon(Icons.check_circle, color: accent),
+                if (selected)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    color: accent,
+                    size: 20,
+                  )
+                else
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: line, width: 1.5),
+                    ),
+                  ),
               ],
             ),
           ),
